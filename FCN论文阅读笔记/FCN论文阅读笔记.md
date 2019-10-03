@@ -27,7 +27,12 @@ $$
 ![](imgs/skip.png)
 
 ## 三、实验结果
+<center class="half">
+    <img src="imgs/fcn8.png" width="250" height="1100"/><img src="imgs/fcn16.png" width="250" height="1100"/><img src="imgs/fcn16s.png" width="250" height="1100"/>
+</center>
+
 ### 1、训练
+
 &emsp;&emsp;第一阶段，以经典的网络Alexnet，googlnet，vgg等的网络结构为基础去除后面的全连接层为卷积层：
 ![](imgs/train_1.png)
 &emsp;&emsp;第二阶段，原始网络的输出为16\*16\*4096最后得到分割的预测图16\*16\*21(21是对应的类别数量)，之后直接上采样为目因为最后上采样32倍因此为FCN-32s。
@@ -36,7 +41,45 @@ $$
 ![](imgs/train_3.png)
 &emsp;&emsp;第三阶段将第三个pooling层的预测结果使用skip结构和最终的输出融合，最后上采样8倍，称为FCN-8s。
 ![](imgs/train_4.png)
-### 2、实验结果
+
+### 2、代码结构
+&emsp;&emsp;代码很简单不做过多的描述：
+```python
+def FCN_8(image_size):
+    fcn_8 = FCN_8_helper(image_size)
+    #Calculating conv size after the sequential block
+    #32 if image size is 512*512
+    Conv_size = fcn_8.layers[-1].output_shape[2] 
+    
+    #Conv to be applied on Pool4
+    skip_con1 = Convolution2D(21,kernel_size=(1,1),padding = "same",activation=None, name = "score_pool4")
+    
+    #Addig skip connection which takes adds the output of Max pooling layer 4 to current layer
+    Summed = add(inputs = [skip_con1(fcn_8.layers[14].output),fcn_8.layers[-1].output])
+    
+    #Upsampling output of first skip connection
+    x = Deconvolution2D(21,kernel_size=(4,4),strides = (2,2),padding = "valid",activation=None,name = "score4")(Summed)
+    x = Cropping2D(cropping=((0,2),(0,2)))(x)
+    
+    
+    #Conv to be applied to pool3
+    skip_con2 = Convolution2D(21,kernel_size=(1,1),padding = "same",activation=None, name = "score_pool3")
+    
+    #Adding skip connection which takes output og Max pooling layer 3 to current layer
+    Summed = add(inputs = [skip_con2(fcn_8.layers[10].output),x])
+    
+    #Final Up convolution which restores the original image size
+    Up = Deconvolution2D(21,kernel_size=(16,16),strides = (8,8),
+                         padding = "valid",activation = None,name = "upsample")(Summed)
+    
+    #Cropping the extra part obtained due to transpose convolution
+    final = Cropping2D(cropping = ((0,8),(0,8)))(Up)
+    
+    
+    return Model(fcn_8.input, final)
+```
+
+### 3、实验结果
 #### 1)、相同网络不同结构的对比
 &emsp;&emsp;可以明显的看到8s相较于其他两个结构在结果上更加精细而且边界效果更好。
 ![](imgs/res.png)
