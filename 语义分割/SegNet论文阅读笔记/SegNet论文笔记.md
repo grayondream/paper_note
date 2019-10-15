@@ -76,6 +76,9 @@ class SegNet(nn.Module):
         dec1 = self.dec1(torch.cat([enc1, dec2], 1))
         return dec1
 ```
+### 2、Pooling indices
+&emsp;&emsp;和其他网络不同之处，下采样的过程中保留了原来pooling数值的位置，然后恢复时再恢复这里的信息，而不是直接用使用deconvolution进行上采样，能够减少计算量的同时节省内存。
+![](imgs/pooling.png)
 ## 三、实验
 ### 1、实验设置
 - 使用固定学习率0.1和动量0.9的随机梯度下降（SGD），使用Caffe实现SegNet-Basic；
