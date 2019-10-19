@@ -79,7 +79,124 @@ $$
 \mathcal{L}_{Total}=\alpha\mathcal{L}_{Seg_{Total}}+\beta\mathcal{L}_{G_{Total}}+\gamma\mathcal{L}_{Rec_{Total}}
 $$
 &emsp;&emsp;其中α，β和γ控制每个项在主要损失函数中的重要性。
-## 三、实验结果
+## 三、代码
+### 1、Encoder-Decoder
+&emsp;&emsp;编码器：
+```python
+class _EncoderBlock(Module):
+    def __init__(self, in_channels, out_channels, dropout=False):
+        super(_EncoderBlock, self).__init__()
+        layers = [
+            nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1),
+            nn.BatchNorm2d(out_channels),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(out_channels, out_channels, kernel_size=3, padding=1),
+            nn.BatchNorm2d(out_channels),
+            nn.ReLU(inplace=True),
+        ]
+        if dropout:
+            layers.append(nn.Dropout())
+        layers.append(nn.MaxPool2d(kernel_size=2, stride=2))
+        self.encode = nn.Sequential(*layers)
+
+    def forward(self, x):
+        return self.encode(x)
+```
+&emsp;&emsp;解码器：
+```
+class _DecoderBlock(Module):
+    def __init__(self, in_channels, middle_channels, out_channels):
+        super(_DecoderBlock, self).__init__()
+        self.decode = nn.Sequential(
+            nn.Conv2d(in_channels, middle_channels, kernel_size=3, padding=1),
+            nn.BatchNorm2d(middle_channels),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(middle_channels, middle_channels, kernel_size=3, padding=1),
+            nn.BatchNorm2d(middle_channels),
+            nn.ReLU(inplace=True),
+            nn.ConvTranspose2d(middle_channels, out_channels, kernel_size=2, stride=2),
+        )
+
+    def forward(self, x):
+        return self.decode(x)
+```
+### 2、PAM和CAM
+&emsp;&emsp;PAM模块：
+```python
+class PAM_Module(Module):
+    """ Position attention module"""
+    #Ref from SAGAN
+    def __init__(self, in_dim):
+        super(PAM_Module, self).__init__()
+        self.chanel_in = in_dim
+
+        self.query_conv = Conv2d(in_channels=in_dim, out_channels=in_dim//8, kernel_size=1)
+        self.key_conv = Conv2d(in_channels=in_dim, out_channels=in_dim//8, kernel_size=1)
+        self.value_conv = Conv2d(in_channels=in_dim, out_channels=in_dim, kernel_size=1)
+        self.gamma = Parameter(torch.zeros(1))
+
+        self.softmax = Softmax(dim=-1)
+    def forward(self, x):
+        """
+            inputs :
+                x : input feature maps( B X C X H X W)
+            returns :
+                out : attention value + input feature
+                attention: B X (HxW) X (HxW)
+        """
+        m_batchsize, C, height, width = x.size()
+        proj_query = self.query_conv(x).view(m_batchsize, -1, width*height).permute(0, 2, 1)
+        proj_key = self.key_conv(x).view(m_batchsize, -1, width*height)
+
+        energy = torch.bmm(proj_query, proj_key)
+        attention = self.softmax(energy)
+        proj_value = self.value_conv(x).view(m_batchsize, -1, width*height)
+
+        out = torch.bmm(proj_value, attention.permute(0, 2, 1))
+        out = out.view(m_batchsize, C, height, width)
+
+        out = self.gamma*out + x
+        return out
+```
+&emsp;&emsp;CAM模块：
+```python
+class CAM_Module(Module):
+    """ Channel attention module"""
+    def __init__(self, in_dim):
+        super(CAM_Module, self).__init__()
+        self.chanel_in = in_dim
+
+
+        self.gamma = Parameter(torch.zeros(1))
+        self.softmax  = Softmax(dim=-1)
+    def forward(self,x):
+        """
+            inputs :
+                x : input feature maps( B X C X H X W)
+            returns :
+                out : attention value + input feature
+                attention: B X C X C
+        """
+        m_batchsize, C, height, width = x.size()
+        proj_query = x.view(m_batchsize, C, -1)
+        proj_key = x.view(m_batchsize, C, -1).permute(0, 2, 1)
+       
+        energy = torch.bmm(proj_query, proj_key)
+        energy_new = torch.max(energy, -1, keepdim=True)[0].expand_as(energy)-energy
+        attention = self.softmax(energy_new)
+        proj_value = x.view(m_batchsize, C, -1)
+
+        out = torch.bmm(attention, proj_value)
+        out = out.view(m_batchsize, C, height, width)
+
+        out = self.gamma*out + x
+        return out
+```
+### 3、結果處理
+```python
+return ((predict1_2 + predict2_2 + predict3_2 + predict4_2) / 4)
+```
+## 四、实验结果
 ### 1、实验设置
 **数据集：** 采用MRI数据集。
 **网络结构：** 采用ResNet-101做backbone，并对提取的模型进行消融实验，分别对两个模块PAM和CAM进行分析，然后结合两个模块得到DualNet进行实验。SM-DualNet通过多尺度提取网路的语义信息的网络结构。MSDualNet-Guided结构为使用了上面介绍的所有模块。实验中对比网络U-Net,PAN,DualNet，Attention U-Net。
