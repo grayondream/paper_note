@@ -1,6 +1,6 @@
 # 《Pyramid Attention Network for Semantic Segmentation》论文阅读笔记
-&emsp;&emsp;论文地址:[]()
-&emsp;&emsp;论文代码:[]()
+&emsp;&emsp;论文地址:[Pyramid Attention Network for Semantic Segmentation](https://arxiv.org/abs/1805.10180v1)
+&emsp;&emsp;论文代码:无
 [toc]
 
 ## 一、简介
