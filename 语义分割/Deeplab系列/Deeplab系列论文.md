@@ -63,7 +63,7 @@ $$
 
 ### 2、网络结构
 ![](imgs/deeplab.png)
-#### 1、Atrous Convolution
+#### 1)、Atrous Convolution
 &emsp;&emsp;空洞卷积，文中称（atrous convolution）的公式如下：
 $$
 y[i] = \sum_{k=1}^{K}{x[i+rk]w[k]}
@@ -74,12 +74,12 @@ $$
 &emsp;&emsp;下图时空洞卷积的feature和标准卷积的feature对比：
 ![](imgs/atrous_com.png)
 
-#### 2、Atrous Spatial Pyramid Pooling
+#### 2)、Atrous Spatial Pyramid Pooling
 ![](imgs/ASPP.png)
 &emsp;&emsp;ASPP的结构很简单就是将同一个feature经过多个不同尺寸的空洞卷积进行采样融合后得到的。
 ![](imgs/aspp_deep.png)
 
-#### 3、Fully Connected CRF
+#### 3)、Fully Connected CRF
 &emsp;&emsp;CRF方法已经很早用于语义分割，一般都是用来进行平滑噪声，但是其高昂的计算代价和会丢失部分结构信息这个缺陷是不容忽视的。相比于short-range CRFs，作者提取了fully connected CRFs，其能量函数如下：
 $$
 E(x)=\sum_{i}{\theta_i(x_i)}+\sum_{ij}{\theta_{ij}(x_i,x_j)}
@@ -92,7 +92,7 @@ $$
 &emsp;&emsp;其中$\mu(x_i,x_j)=1,ifx_i\neq x_j, otherwise 0$表示只有不同点是才有惩罚。并且可以看到公式中用到了两个高斯核：第一个惩罚值取决于像素的位置和颜色($I$)，第二个只取决于像素的位置。第一个内核强制具有相似颜色和位置的像素具有相似的标签，而第二个内核仅在强制执行平滑性时才考虑空间接近性。
 ![](imgs/crf.png)
 
-### 3、结果
+### 3)、结果
 ![](imgs/net_com.png)
 ![](imgs/res_com.png)
 ![](imgs/res_aspp.png)
