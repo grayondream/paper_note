@@ -22,8 +22,8 @@ z_i=\frac{1}{N}\sum_{\forall j\in \Omega(i)}F_{\triangle_{ij}}(x_i,x_j)x_j
 $$
 &emsp;&emsp;其中$F_{\triangle_{ij}}$表示一些列的位置相关函数或映射。如果按照上面的公式计算计算量将会非常大，因此进一步简化公式:
 $$
-F_{\triangle_{ij}}(x_i,x_j)\thickapprox F_{\triangle_{ij}}(x_i) 
-\Rightarrow 
+F_{\triangle_{ij}}(x_i,x_j)\thickapprox F_{\triangle_{ij}}(x_i)
+\Rightarrow
 z_i=\frac{1}{N}\sum_{\forall j\in \Omega(i)}F_{\triangle_{ij}}(x_i)x_j
 $$
 ![](imgs/idea.png)
@@ -31,7 +31,7 @@ $$
 $$
 \begin{aligned}
     & F_{\triangle_{ij}}(x_i,x_j) \thickapprox F_{\triangle_{ij}}(x_i) + F_{\triangle_{ij}}(x_j) \\
-    \Rightarrow 
+    \Rightarrow
     &z_i = \frac{1}{N}\sum_{\forall j\in \Omega(i)}F_{\triangle_{ij}}(x_i)x_j+\frac{1}{N}\sum_{\forall j\in \Omega(i)}F_{\triangle_{ij}}(x_j)x_j \\
     \Rightarrow
     &z_i=\frac{1}{N}\sum_{\forall j}\mathrm{a}^c_{i,j}\mathrm{x}_j+\frac{1}{N}\sum_{\forall j}\mathrm{a}^d_{i,j}\mathrm{x}_j
@@ -50,12 +50,33 @@ $$
 \mathrm{a}^c_{[k,l],[s,t]}=\mathrm{h}^c_{[k,l],[H-k+s,W-l+t]},\forall s\in[0,H),t\in [0,W)
 $$
 &emsp;&emsp;$\mathrm{a}$表示Attention Map，$\mathrm{h}$表示输入。
+&emsp;&emsp;另外说一句，两个模块实现本质上差不多，唯一的区别是最后得到的attention map之前的feature是如何取到的，collect是将其他点的响应收集到目标点，distribution是将当前点分发给其他点，带着这样的想法看下C++源码就可以理解了。
 ### 4、网络结构
 ![](imgs/model.png)
 
 ## 三、代码
 ### 1、PSA COLLECT Module
-```caffe
+![](imgs/psama.png)
+```
+layer {
+  name: "conv5_3"
+  type: "Eltwise"
+  bottom: "conv5_2"
+  bottom: "conv5_3_1x1_increase"
+  top: "conv5_3"
+  eltwise_param {
+    operation: SUM
+  }
+}
+layer {
+  name: "conv5_3/relu"
+  type: "ReLU"
+  bottom: "conv5_3"
+  top: "conv5_3"
+}
+
+################################## PSA COLLECT Module ##################################
+
 layer {
   name: "conv5_3_reduce_before_PSA_COLLECT"
   type: "Convolution"
@@ -211,9 +232,9 @@ layer {
     normalization_factor: 1.0
   }
 }
-```
-### 2、PSA DISTRIBUTE Module
-```caffe
+
+################################## PSA DISTRIBUTE Module ##################################
+
 layer {
   name: "conv5_3_reduce_before_PSA_DISTRIBUTE"
   type: "Convolution"
@@ -369,8 +390,85 @@ layer {
     normalization_factor: 1.0
   }
 }
+
+################################## PSA COMBINE ##################################
+
+layer {
+  name: "global_feature"
+  type: "Concat"
+  bottom: "global_feature_COLLECT"
+  bottom: "global_feature_DISTRIBUTE"
+  top: "global_feature"
+}
+
+layer {
+  name: "conv_post_PSA"
+  type: "Convolution"
+  bottom: "global_feature"
+  top: "conv_post_PSA"
+  param {
+    lr_mult: 10
+    decay_mult: 1
+  }
+  convolution_param {
+    num_output: 2048
+    kernel_size: 1
+    stride: 1
+    weight_filler {
+      type: "msra"
+    }
+    bias_term: false
+  }
+}
+layer {
+  name: "conv_post_PSA/bn"
+  type: "BN"
+  bottom: "conv_post_PSA"
+  top: "conv_post_PSA"
+  param {
+    lr_mult: 10
+    decay_mult: 0
+  }
+  param {
+    lr_mult: 10
+    decay_mult: 0
+  }
+  param {
+    lr_mult: 0
+    decay_mult: 0
+  }
+  param {
+    lr_mult: 0
+    decay_mult: 0
+  }
+  bn_param {
+    slope_filler {
+      type: "constant"
+      value: 1
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+    frozen: true
+    momentum: 0.95
+  }
+}
+layer {
+  name: "conv_post_PSA/relu"
+  type: "ReLU"
+  bottom: "conv_post_PSA"
+  top: "conv_post_PSA"
+}
+
+layer {
+  name: "conv5_3_concat"
+  type: "Concat"
+  bottom: "conv5_3"
+  bottom: "conv_post_PSA"
+  top: "conv5_3_concat"
+}
 ```
-### 3、区别
 &emsp;&emsp;从上面的配置文件看网络的机构基本相同都是两个1\*1卷积核接一个attention模块，不同之处为attention的实现方式:
 ```cpp
 switch (this->layer_param_.pointwise_spatial_attention_param().psa_type()) {
@@ -457,6 +555,7 @@ buffer_data[(n * feature_H_ * feature_W_ + h * feature_W_ + w) * feature_H_ * fe
 ```
 &emsp;&emsp;图中第一项实在相同的feautre中索引不同的位置，第二项实在不同的feature中索引相同的位置。
 ![](imgs/diff.png)
+&emsp;&emsp;第一行是索引相同通道上的某个点，第二个是索引具体某个通道。
 
 ## 四、结果
 &emsp;&emsp;看结果的话不能说没用也不能说多有用。

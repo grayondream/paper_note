@@ -30,7 +30,7 @@ $$
 d_{i,u}=Q_u\Omega_{i,u}^{T}
 $$
 &emsp;&emsp;其中$Q_u\in\mathbb{R}^{C^{'}}$是在特征图Q的空间维度上的u位置的值。$\Omega_u\in\mathbb{R}^{(H+W-1)C^{'}}$是$K$上$u$位置处的同列和同行的元素的集合。因此，$\Omega_{u,i}\in\mathbb{R}^{C^{'}}$是$\Omega_u$中的第$i$个元素，其中$i=[1,2,...,|\Omega_u|]$。而$d_{i,u}\in D$表示$Q_u$和$\Omega_{i,u}$之间的联系的权重,$D\in \mathbb{R}^{(H+W-1)*W*H}$。最后对$D$进行在通道维度上继续进行softmax操作计算Attention Map $A$。
-&emsp;&emsp;另一个分支$V$经过一个1\*1卷积层得到$V \in \mathbb{R}^{C*W*H}$的适应性特征。同样定义$V_u \in \mathbb{R}^C$和$\Phi_u\in \mathbb{R}^{(H+W-1)*C}$则定义Aggregation操作为:
+&emsp;&emsp;另一个分支$V$经过一个1\*1卷积层得到$V \in \mathbb{R}^{C*W*H}$的适应性特征。同样定义$V_u \in \mathbb{R}^C$和$\Phi_u\in \mathbb{R}^{(H+W-1)*C}$, $\Phi_u$是$V$上u点的同行同列的集合，则定义Aggregation操作为:
 $$
 H_u^{'}\sum_{i \in |\Phi_u|}{A_{i,u}\Phi_{i,u}+H_u}
 $$
@@ -86,7 +86,7 @@ class CA_Weight(autograd.Function):
         weight = torch.zeros(size, dtype=t.dtype, layout=t.layout, device=t.device)
 
         _ext.ca_forward_cuda(t, f, weight)
-        
+
         # Output
         ctx.save_for_backward(t, f)
 
@@ -114,7 +114,7 @@ class CA_Map(autograd.Function):
         # Save context
         out = torch.zeros_like(g)
         _ext.ca_map_forward_cuda(weight, g, out)
-        
+
         # Output
         ctx.save_for_backward(weight, g)
 

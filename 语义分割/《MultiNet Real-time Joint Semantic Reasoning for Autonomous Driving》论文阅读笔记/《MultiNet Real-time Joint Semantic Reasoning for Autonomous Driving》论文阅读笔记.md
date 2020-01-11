@@ -7,7 +7,7 @@
 ## 一、简介
 &emsp;&emsp;这篇文章是一个关于分类任务、目标检测和语义分割三个任务联合的网络，网络的结构没有多大的创新型使用的是类似FCN的Encoder-Decoder结构。
 ## 二、网络结构
-![](/imgs/arch.png)
+![](imgs/arch.png)
 
 ## 三、结果
 ![](imgs/res.png)

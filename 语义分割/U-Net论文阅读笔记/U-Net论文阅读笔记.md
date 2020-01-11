@@ -68,10 +68,10 @@ class Recurrent_block(nn.Module):
 
             if i==0:
                 x1 = self.conv(x)
-            
+
             x1 = self.conv(x+x1)
         return x1
-        
+
 class RRCNN_block(nn.Module):
     def __init__(self,ch_in,ch_out,t=2):
         super(RRCNN_block,self).__init__()
@@ -95,7 +95,7 @@ class RRCNN_block(nn.Module):
 ![](imgs/rutrain.png)
 ![](imgs/rures.png)
 ### 2、Attention U-Net
-&emsp;&emsp;论文地址:[Attention U-Net:Learning Where to Look for the Pancreas](https://arxiv.org/ftp/arxiv/papers/1802/1802.06955.pdf)
+&emsp;&emsp;论文地址:[Attention U-Net:Learning Where to Look for the Pancreas](http://xxx.itp.ac.cn/pdf/1804.03999.pdf)
 &emsp;&emsp;代码地址:[github](https://github.com/ozan-oktay/Attention-Gated-Networks)
 
 #### 1)、网络结构
@@ -111,7 +111,7 @@ class Attention_block(nn.Module):
             nn.Conv2d(F_g, F_int, kernel_size=1,stride=1,padding=0,bias=True),
             nn.BatchNorm2d(F_int)
             )
-        
+
         self.W_x = nn.Sequential(
             nn.Conv2d(F_l, F_int, kernel_size=1,stride=1,padding=0,bias=True),
             nn.BatchNorm2d(F_int)
@@ -122,9 +122,9 @@ class Attention_block(nn.Module):
             nn.BatchNorm2d(1),
             nn.Sigmoid()
         )
-        
+
         self.relu = nn.ReLU(inplace=True)
-        
+
     def forward(self,g,x):
         g1 = self.W_g(g)
         x1 = self.W_x(x)
