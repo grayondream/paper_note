@@ -1,0 +1,2 @@
+# 《SCA-CNN: Spatial and Channel-wise Attention in Convolutional Networks for Image Captioning》论文阅读笔记
+&emsp;&emsp;论文地址：[SCA-CNN: Spatial and Channel-wise Attention in Convolutional Networks for Image Captioning](http://xxx.itp.ac.cn/pdf/1611.05594v1)
